@@ -1,0 +1,16 @@
+services:
+  crisp:
+    build: .
+    image: crisp-it-quick:latest
+    restart: unless-stopped
+    # Needed to mount the recorder (CAP_SYS_ADMIN + block device access).
+    privileged: true
+    # udev hotplug events arrive over a netlink socket only visible in the host network namespace.
+    network_mode: host
+    env_file: .env
+    stop_grace_period: 10s
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+      - /run/udev:/run/udev:ro
+      - /dev:/dev

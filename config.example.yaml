@@ -1,0 +1,64 @@
+# crisp-it-quick configuration. Copy to config.yaml and adjust.
+# Secrets (OPENROUTER_API_KEY) belong in .env, never in this file.
+
+device:
+  # The recorder is matched when a vendor string AND a model string contain one of these
+  # (case-insensitive). Checked against udev / usb.ids names, e.g.
+  # "Actions Semiconductor Co., Ltd" / "D-Wave 2GB MP4 Player / AK1025 MP3/MP4 Player".
+  vendor_match: ["Actions Semiconductor"]
+  model_match: ["D-Wave", "AK1025"]
+  # Optional exact USB id "vendor:product" (see `lsusb`); takes precedence over names.
+  # The D-Wave / AK1025 recorder reports 10d6:1101.
+  usb_id: null
+  # Fallback polling interval in case a hotplug event is missed.
+  poll_interval_s: 30
+  # The device must be present this long before ingest starts.
+  debounce_s: 2
+  # Where the service mounts the recorder (read-only) inside the container.
+  mount_root: /mnt/recorder
+  # Use an existing mount instead of mounting (e.g. a bind-mounted host automount path).
+  mount_path_override: null
+
+ingest:
+  # Folder on the recorder holding the .WAV files (matched case-insensitively).
+  record_folder: RECORD
+  # Timezone the recorder clock runs in; used for file names and metadata.
+  timezone: Europe/Berlin
+
+paths:
+  # Archive: <data_dir>/audio_to_text/<YYYY-MM>/<DD>_<HHMMSS>_{audio.wav,text.md}
+  # State database: <data_dir>/state.db
+  data_dir: /app/data
+  # Owner for created files, so they are not root-owned on the host.
+  owner_uid: 1000
+  owner_gid: 1000
+
+openrouter:
+  base_url: https://openrouter.ai/api/v1
+  timeout_s: 120
+  # Retries per HTTP request for network errors, timeouts, 429 and 5xx.
+  request_retries: 5
+
+transcription:
+  provider: openrouter
+  # Candidates: openai/whisper-large-v3, mistralai/voxtral-mini-transcribe-3-0,
+  #             mistralai/voxtral-small-transcribe-3-0
+  model: openai/whisper-large-v3
+  language: de
+  # Recordings longer than this are split (cut at nearby silence) and transcribed piecewise.
+  chunk_seconds: 120
+  chunk_overlap_s: 1
+  # Whole-pipeline attempts per recording before it stays "failed".
+  max_attempts: 3
+
+cleanup:
+  # LLM pass fixing punctuation/capitalization/paragraphs only. The raw text is always kept.
+  enabled: true
+  provider: openrouter
+  model: deepseek/deepseek-v4-flash-0731
+  # Override the built-in (German) instructions; null uses the default.
+  prompt: null
+  max_chunk_chars: 6000
+
+logging:
+  level: INFO
