@@ -72,9 +72,10 @@ async def test_end_to_end(svc_settings, device_dir):
 
     month = svc_settings.paths.archive_dir / "2026-10"
     assert sorted(p.name for p in month.iterdir()) == [
-        "25_090000_audio.wav", "25_090000_text.md", "25_090500_audio.wav", "25_090500_text.md",
+        "2026_10_25_time090000_audio.wav", "2026_10_25_time090000_text.md",
+        "2026_10_25_time090500_audio.wav", "2026_10_25_time090500_text.md",
     ]
-    assert "hallo welt" in (month / "25_090000_text.md").read_text()
+    assert "hallo welt" in (month / "2026_10_25_time090000_text.md").read_text()
     assert sorted(p.name for p in (device_dir / "RECORD").iterdir()) == ["REC001.WAV", "REC002.WAV"]
 
     # Re-plug: nothing new is archived.
@@ -131,5 +132,61 @@ async def test_mount_failure_retried_on_next_poll(svc_settings, tmp_path):
     (tmp_path / "not-there-yet" / "RECORD").mkdir(parents=True)
     make_audio(tmp_path / "not-there-yet" / "RECORD" / "REC009.WAV", 2)
     await wait_for(lambda: statuses(svc_settings) == [Status.DONE])
+    stop.set()
+    await task
+
+
+def recordings(settings):
+    r = Repository(settings.paths.db_path)
+    try:
+        return r.all()
+    finally:
+        r.close()
+
+
+async def test_audio_deleted_while_stopped_not_resumed(svc_settings):
+    stop, task = await start(svc_settings, FakeSource([RECORDER]), BlockingTranscriber())
+    await wait_for(lambda: len(statuses(svc_settings)) == 2)
+    stop.set()
+    await asyncio.wait_for(task, 10)
+    gone = recordings(svc_settings)[1]
+    (svc_settings.paths.archive_dir / gone.audio_path).unlink()
+
+    transcriber = FakeTranscriber()
+    stop, task = await start(svc_settings, FakeSource([]), transcriber)
+    await wait_for(lambda: statuses(svc_settings)[0] == Status.DONE)
+    await asyncio.sleep(0.2)
+    stop.set()
+    await task
+    first, second = recordings(svc_settings)
+    assert second.audio_deleted_at is not None and second.status != Status.DONE
+    assert transcriber.calls == 1
+    assert not (svc_settings.paths.archive_dir / second.text_path).exists()
+
+
+async def test_deleted_transcript_not_rewritten_on_restart(svc_settings):
+    stop, task = await start(svc_settings, FakeSource([RECORDER]), FakeTranscriber())
+    await wait_for(lambda: statuses(svc_settings) == [Status.DONE] * 2)
+    stop.set()
+    await task
+    text = svc_settings.paths.archive_dir / recordings(svc_settings)[0].text_path
+    text.unlink()
+
+    stop, task = await start(svc_settings, FakeSource([RECORDER]), FakeTranscriber())
+    await asyncio.sleep(0.5)
+    stop.set()
+    await task
+    assert recordings(svc_settings)[0].text_deleted_at is not None
+    assert not text.exists()
+    assert len(recordings(svc_settings)) == 2  # not re-ingested from the recorder
+
+
+async def test_periodic_sync_marks_file_deleted_while_running(svc_settings):
+    svc_settings.sync.interval_s = 0.1
+    stop, task = await start(svc_settings, FakeSource([RECORDER]), FakeTranscriber())
+    await wait_for(lambda: statuses(svc_settings) == [Status.DONE] * 2)
+    rec = recordings(svc_settings)[0]
+    (svc_settings.paths.archive_dir / rec.text_path).unlink()
+    await wait_for(lambda: recordings(svc_settings)[0].text_deleted_at is not None)
     stop.set()
     await task

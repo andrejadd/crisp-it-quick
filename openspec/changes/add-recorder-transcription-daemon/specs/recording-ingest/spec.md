@@ -37,19 +37,19 @@ The service SHALL identify a recording by the SHA-256 hash of its content. A can
 - **THEN** it is skipped without reading its full content
 
 ### Requirement: Archive naming
-The service SHALL copy each new recording to `data/audio_to_text/<YYYY-MM>/<DD>_<HHMMSS>_audio.<ext>`. The timestamp SHALL be the recording start time encoded in the device file name (`YYYYMMDDHHMMSS`). If the name encodes no valid time, the file's modification time SHALL be used. Either is interpreted in the configured timezone. `<ext>` SHALL be the source extension in lower case.
+The service SHALL copy each new recording to `data/audio_to_text/<YYYY-MM>/<YYYY>_<MM>_<DD>_time<HHMMSS>_audio.<ext>`. The timestamp SHALL be the recording start time encoded in the device file name (`YYYYMMDDHHMMSS`). If the name encodes no valid time, the file's modification time SHALL be used. Either is interpreted in the configured timezone. `<ext>` SHALL be the source extension in lower case.
 
 #### Scenario: Start time from file name
 - **WHEN** a new recording `20261025143012.WAV` has a modification time of 2026-10-25 14:35:40 local time
-- **THEN** it is archived as `data/audio_to_text/2026-10/25_143012_audio.wav`
+- **THEN** it is archived as `data/audio_to_text/2026-10/2026_10_25_time143012_audio.wav`
 
 #### Scenario: Fallback to modification time
 - **WHEN** a new recording `REC005.WAV` has a modification time of 2026-10-25 14:30:12 local time
-- **THEN** it is archived as `data/audio_to_text/2026-10/25_143012_audio.wav`
+- **THEN** it is archived as `data/audio_to_text/2026-10/2026_10_25_time143012_audio.wav`
 
 #### Scenario: Name collision
 - **WHEN** the target name is already taken by a different recording
-- **THEN** a numeric suffix is added (`25_143012-2_audio.wav`), and the same suffix is used for that recording's transcript
+- **THEN** a numeric suffix is added (`2026_10_25_time143012-2_audio.wav`), and the same suffix is used for that recording's transcript
 
 ### Requirement: Safe copy
 The service SHALL make a recording visible in the archive only once it is fully copied and its SHA-256 hash matches the source. Partial or mismatched copies SHALL be discarded.

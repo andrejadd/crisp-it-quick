@@ -27,7 +27,7 @@
 ## 5. Ingest (recording-ingest)
 
 - [x] 5.1 Implement discovery of `*.wav` (case-insensitive) in the configured `RECORD` folder, with a warning when the folder is missing. Verify with unit tests on a temp directory: upper/lower case, other files ignored, missing folder.
-- [x] 5.2 Implement archive naming: `<YYYY-MM>/<DD>_<HHMMSS>_audio.<ext>` from the mtime in the configured timezone, with a `-N` collision suffix shared with the transcript name. Verify with unit tests: the spec example `25_143012_audio.wav`, collision `-2`, a DST edge case.
+- [x] 5.2 Implement archive naming: `<YYYY-MM>/<YYYY>_<MM>_<DD>_time<HHMMSS>_audio.<ext>` from the mtime in the configured timezone, with a `-N` collision suffix shared with the transcript name. Verify with unit tests: the spec example `2026_10_25_time143012_audio.wav`, collision `-2`, a DST edge case.
 - [x] 5.3 Implement the safe copy: stream to `.part` while hashing, fsync, verify against a second read of the source, `os.replace`; discard on mismatch. Verify with unit tests: a successful copy matches the hash, a simulated mid-copy failure leaves no final file, and a mismatch is discarded.
 - [x] 5.4 Implement the ingest run: skip by fast key, then by sha256; copy new files; insert `copied` records; enqueue each recording ID immediately; abort cleanly on device removal. Verify with an integration test on a fake mount directory: first run archives N files, a second run archives 0, a reused file name with new content is archived, and source files are unchanged (compared by hash before and after).
 

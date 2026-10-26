@@ -13,7 +13,7 @@ def doc(raw="hallo das ist ein test zweiter absatz", cleaned=None, cleanup_model
     return TranscriptDoc(
         recorded_at=datetime(2026, 10, 25, 14, 30, 12, tzinfo=ZoneInfo("Europe/Berlin")),
         source_file="REC005.WAV",
-        audio_file="25_143012_audio.wav",
+        audio_file="2026_10_25_time143012_audio.wav",
         duration_s=63.42,
         stt_provider="openrouter",
         stt_model="mistralai/voxtral-small-transcribe-3-0",

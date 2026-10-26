@@ -96,6 +96,10 @@ class CleanupConfig(_Section):
     max_chunk_chars: int = Field(default=6000, ge=500)
 
 
+class SyncConfig(_Section):
+    interval_s: float = Field(default=300, ge=0, description="0 disables periodic sync")
+
+
 class LoggingConfig(_Section):
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
@@ -107,6 +111,7 @@ class Settings(_Section):
     openrouter: OpenRouterConfig = OpenRouterConfig()
     transcription: TranscriptionConfig = TranscriptionConfig()
     cleanup: CleanupConfig = CleanupConfig()
+    sync: SyncConfig = SyncConfig()
     logging: LoggingConfig = LoggingConfig()
 
     # Secrets: never read from config.yaml, only from the environment.
@@ -134,7 +139,9 @@ def _format_validation_error(err: ValidationError) -> str:
     return "invalid configuration:\n" + "\n".join(lines)
 
 
-def load_settings(path: Path | str, env: dict[str, str] | None = None) -> Settings:
+def load_settings(
+    path: Path | str, env: dict[str, str] | None = None, *, require_secrets: bool = True
+) -> Settings:
     """Load and validate config.yaml plus secrets from ``env`` (defaults to os.environ)."""
     env = os.environ if env is None else env
     path = Path(path)
@@ -156,7 +163,7 @@ def load_settings(path: Path | str, env: dict[str, str] | None = None) -> Settin
 
     key = env.get("OPENROUTER_API_KEY", "").strip()
     settings.openrouter_api_key = SecretStr(key) if key else None
-    if settings.uses_openrouter() and settings.openrouter_api_key is None:
+    if require_secrets and settings.uses_openrouter() and settings.openrouter_api_key is None:
         raise ConfigError(
             "missing environment variable OPENROUTER_API_KEY (required by provider 'openrouter')"
         )

@@ -50,6 +50,10 @@ MIGRATIONS: list[str] = [
         cleaned_text TEXT
     );
     """,
+    """
+    ALTER TABLE recordings ADD COLUMN audio_deleted_at TEXT;
+    ALTER TABLE recordings ADD COLUMN text_deleted_at TEXT;
+    """,
 ]
 
 SCHEMA_VERSION = len(MIGRATIONS)
@@ -79,6 +83,8 @@ class Recording:
     cleanup_error: str | None
     created_at: str
     updated_at: str
+    audio_deleted_at: str | None = None
+    text_deleted_at: str | None = None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Recording:
@@ -181,8 +187,9 @@ class Repository:
         """Recordings to (re)process at startup: unfinished ones, and failed below the limit."""
         with self._lock:
             rows = self._conn.execute(
-                "SELECT id FROM recordings WHERE status IN (?, ?, ?, ?) "
-                "OR (status = ? AND attempts < ?) ORDER BY recorded_at, id",
+                "SELECT id FROM recordings WHERE audio_deleted_at IS NULL AND "
+                "(status IN (?, ?, ?, ?) OR (status = ? AND attempts < ?)) "
+                "ORDER BY recorded_at, id",
                 (
                     Status.COPIED,
                     Status.TRANSCRIBING,
@@ -290,6 +297,27 @@ class Repository:
             except BaseException:
                 self._conn.execute("ROLLBACK")
                 raise
+
+    def set_deleted(self, recording_id: int, kind: str, deleted: bool) -> bool:
+        """Mark (keeping an existing time) or clear a deleted file; returns whether it changed."""
+        if kind not in ("audio", "text"):
+            raise ValueError(f"unknown file kind {kind!r}")
+        col = f"{kind}_deleted_at"
+        with self._lock:
+            if deleted:
+                now = _now()
+                cur = self._conn.execute(
+                    f"UPDATE recordings SET {col} = ?, updated_at = ? "
+                    f"WHERE id = ? AND {col} IS NULL",
+                    (now, now, recording_id),
+                )
+            else:
+                cur = self._conn.execute(
+                    f"UPDATE recordings SET {col} = NULL, updated_at = ? "
+                    f"WHERE id = ? AND {col} IS NOT NULL",
+                    (_now(), recording_id),
+                )
+            return cur.rowcount > 0
 
     def get_texts(self, recording_id: int) -> tuple[str | None, str | None]:
         with self._lock:

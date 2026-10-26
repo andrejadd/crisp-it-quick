@@ -7,11 +7,11 @@ Defines the markdown transcript file produced for each recording: where it lives
 ## ADDED Requirements
 
 ### Requirement: Transcript location and name
-The service SHALL write each transcript to `<DD>_<HHMMSS>_text.md`, in the same `data/audio_to_text/<YYYY-MM>/` folder as its archived audio and with the same timestamp and collision suffix.
+The service SHALL write each transcript to `<YYYY>_<MM>_<DD>_time<HHMMSS>_text.md`, in the same `data/audio_to_text/<YYYY-MM>/` folder as its archived audio and with the same timestamp and collision suffix.
 
 #### Scenario: Transcript next to audio
-- **WHEN** `data/audio_to_text/2026-10/25_143012_audio.wav` is transcribed
-- **THEN** the transcript is written to `data/audio_to_text/2026-10/25_143012_text.md`
+- **WHEN** `data/audio_to_text/2026-10/2026_10_25_time143012_audio.wav` is transcribed
+- **THEN** the transcript is written to `data/audio_to_text/2026-10/2026_10_25_time143012_text.md`
 
 ### Requirement: Transcript content structure
 The transcript file SHALL begin with YAML front matter containing: recording datetime, source file name, archived audio file name, duration in seconds, transcription provider and model, cleanup model (or none), and the time the transcript was created. A body heading with the recording date and time SHALL follow. Then comes the cleaned transcript, if any, and finally a `## Raw transcript` section with the raw text.

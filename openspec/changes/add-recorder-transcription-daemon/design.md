@@ -51,7 +51,7 @@ The second read happens only for new files, so it is cheap. It catches FAT read 
 ### D5: Naming and time source
 The archive timestamp is the recording start time, which the D-Wave recorder encodes in the file name (`YYYYMMDDHHMMSS.WAV`). The file's mtime is the recording *end*, so it is only a fallback for names that don't parse to a valid date. Both are read as wall-clock time in `timezone` from config (default `Europe/Berlin`). FAT stores local time without a zone, so the configured zone makes the interpretation explicit. The recorder clock may be wrong. The original device file name and mtime are stored in the DB and in the transcript front matter, so names can be corrected later.
 
-If a target name is taken, the suffix goes before the role: `DD_HHMMSS-2_audio.wav` and `DD_HHMMSS-2_text.md`.
+If a target name is taken, the suffix goes before the role: `YYYY_MM_DD_timeHHMMSS-2_audio.wav` and `YYYY_MM_DD_timeHHMMSS-2_text.md`.
 
 ### D6: State model
 Table `recordings`: `id, sha256 UNIQUE, source_name, source_size, source_mtime, recorded_at, audio_path, text_path, duration_s, status, attempts, last_error, stt_provider, stt_model, cleanup_model, cleanup_error, created_at, updated_at`. Table `schema_version`.

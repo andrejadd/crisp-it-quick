@@ -89,7 +89,7 @@ class ArchiveNames:
 
 
 def archive_names(when: datetime, ext: str, suffix: int = 1) -> ArchiveNames:
-    stem = f"{when:%d}_{when:%H%M%S}" + (f"-{suffix}" if suffix > 1 else "")
+    stem = f"{when:%Y_%m_%d}_time{when:%H%M%S}" + (f"-{suffix}" if suffix > 1 else "")
     month = Path(f"{when:%Y-%m}")
     ext = ext.lower().lstrip(".")
     return ArchiveNames(month / f"{stem}_audio.{ext}", month / f"{stem}_text.md")

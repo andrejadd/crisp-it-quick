@@ -23,7 +23,7 @@ class FakeTranscriber:
         return TranscriptChunk(text=f"{self.text} {self.calls}")
 
 
-def add_recording(settings, repo, seconds=5, codec="pcm_s16le", name="25_143012"):
+def add_recording(settings, repo, seconds=5, codec="pcm_s16le", name="2026_10_25_time143012"):
     archive = settings.paths.archive_dir
     audio_rel = f"2026-10/{name}_audio.wav"
     (archive / "2026-10").mkdir(parents=True, exist_ok=True)
@@ -147,3 +147,34 @@ async def test_done_transcript_never_rewritten(settings, repo):
     await p.process(rid)  # e.g. re-enqueued after restart
     assert path.read_text() == "my edits\n"
     assert rid not in repo.resumable_ids(3)
+
+
+async def test_missing_audio_marked_deleted_without_attempt(settings, repo, caplog):
+    rid = add_recording(settings, repo)
+    (settings.paths.archive_dir / repo.get(rid).audio_path).unlink()
+    t = FakeTranscriber()
+    await Pipeline(settings, repo, t, None).process(rid)
+    rec = repo.get(rid)
+    assert rec.audio_deleted_at is not None
+    assert (rec.status, rec.attempts, rec.last_error) == (Status.COPIED, 0, None)
+    assert t.calls == 0
+    assert not any(r.levelno >= 40 for r in caplog.records)
+
+
+async def test_deleted_audio_not_processed(settings, repo):
+    rid = add_recording(settings, repo)
+    repo.set_deleted(rid, "audio", True)
+    t = FakeTranscriber()
+    await Pipeline(settings, repo, t, None).process(rid)
+    assert t.calls == 0 and repo.get(rid).status == Status.COPIED
+
+
+async def test_deleted_transcript_not_rewritten(settings, repo):
+    rid = add_recording(settings, repo)
+    p = Pipeline(settings, repo, FakeTranscriber(), None)
+    await p.process(rid)
+    text_file(settings, repo, rid).unlink()
+    repo.set_deleted(rid, "text", True)
+    await p.process(rid)
+    assert repo.resumable_ids(settings.transcription.max_attempts) == []
+    assert not text_file(settings, repo, rid).exists()

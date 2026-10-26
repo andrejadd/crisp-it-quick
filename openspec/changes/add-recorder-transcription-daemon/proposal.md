@@ -8,11 +8,11 @@ Recordings from a handheld voice recorder (Actions Semiconductor D-Wave / AK1025
 
 - New long-running daemon, shipped as a docker compose service, that watches USB hotplug events and detects the recorder.
 - Mounts the recorder read-only when it is not already mounted. If it is already mounted, the existing mount is used. Files on the device are never modified or deleted.
-- Scans the device's `RECORD/` folder for `.WAV` files not seen before and copies them into `data/audio_to_text/<YYYY-MM>/<DD>_<HHMMSS>_audio.wav`.
+- Scans the device's `RECORD/` folder for `.WAV` files not seen before and copies them into `data/audio_to_text/<YYYY-MM>/<YYYY>_<MM>_<DD>_time<HHMMSS>_audio.wav`.
 - SQLite database that tracks every recording: identity (content hash), source path, timestamps, pipeline status, attempts and errors.
 - Transcribes each new recording through a pluggable provider interface. v1 ships a single **OpenRouter** provider (`/api/v1/audio/transcriptions`). The model is set in config, e.g. `openai/whisper-large-v3`, `mistralai/voxtral-mini-transcribe-3-0` or `mistralai/voxtral-small-transcribe-3-0`.
 - Optional cleanup step: an OpenRouter chat model (configurable, e.g. a DeepSeek flash model) fixes punctuation and paragraphing of the raw transcript without changing its content.
-- Writes `data/audio_to_text/<YYYY-MM>/<DD>_<HHMMSS>_text.md` with metadata, the cleaned transcript and the raw transcript.
+- Writes `data/audio_to_text/<YYYY-MM>/<YYYY>_<MM>_<DD>_time<HHMMSS>_text.md` with metadata, the cleaned transcript and the raw transcript.
 - Configuration split: `config.yaml` for settings that aren't secret, `.env` for secrets (`OPENROUTER_API_KEY`).
 
 ### Out of scope for v1

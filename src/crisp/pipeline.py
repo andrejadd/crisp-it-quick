@@ -38,7 +38,7 @@ class Pipeline:
 
     async def process(self, recording_id: int) -> None:
         rec = self.repo.get(recording_id)
-        if rec is None or rec.status == Status.DONE:
+        if rec is None or rec.status == Status.DONE or rec.audio_deleted_at:
             return
         max_attempts = self.settings.transcription.max_attempts
         if rec.status == Status.FAILED and rec.attempts >= max_attempts:
@@ -46,6 +46,10 @@ class Pipeline:
         try:
             raw, cleaned = self.repo.get_texts(rec.id)
             if raw is None:
+                if not (self.archive_dir / rec.audio_path).exists():
+                    self.repo.set_deleted(rec.id, "audio", True)
+                    log.info("audio %s was deleted, not transcribing", rec.audio_path)
+                    return
                 raw = await self._transcribe(rec)
             rec = self.repo.get(rec.id)
             if rec.status != Status.CLEANED:

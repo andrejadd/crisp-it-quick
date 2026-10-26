@@ -60,5 +60,11 @@ cleanup:
   prompt: null
   max_chunk_chars: 6000
 
+sync:
+  # How often (seconds) to check the archive for audio/transcript files deleted by hand.
+  # Deleted recordings are not reprocessed or re-imported. 0 = only at startup and
+  # on `crisp sync`.
+  interval_s: 300
+
 logging:
   level: INFO

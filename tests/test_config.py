@@ -72,3 +72,15 @@ def test_secret_in_config_rejected(tmp_path):
 def test_missing_file(tmp_path):
     with pytest.raises(ConfigError, match="not found"):
         load_settings(tmp_path / "nope.yaml", ENV)
+
+
+def test_sync_interval(tmp_path):
+    assert load_settings(write(tmp_path, ""), ENV).sync.interval_s == 300
+    assert load_settings(write(tmp_path, "sync:\n  interval_s: 0\n"), ENV).sync.interval_s == 0
+    with pytest.raises(ConfigError, match=r"sync\.interval_s"):
+        load_settings(write(tmp_path, "sync:\n  interval_s: -1\n"), ENV)
+
+
+def test_secrets_optional_when_not_required(tmp_path):
+    s = load_settings(write(tmp_path, ""), {}, require_secrets=False)
+    assert s.openrouter_api_key is None

@@ -68,8 +68,8 @@ def test_missing_record_folder(tmp_path, repo, caplog):
 def test_spec_naming_example():
     when = recorded_at(wall_epoch(2026, 10, 25, 14, 30, 12), TZ)
     names = archive_names(when, ".WAV")
-    assert str(names.audio) == "2026-10/25_143012_audio.wav"
-    assert str(names.text) == "2026-10/25_143012_text.md"
+    assert str(names.audio) == "2026-10/2026_10_25_time143012_audio.wav"
+    assert str(names.text) == "2026-10/2026_10_25_time143012_text.md"
     assert when.isoformat() == "2026-10-25T14:30:12+01:00"
 
 
@@ -77,20 +77,20 @@ def test_dst_wall_clock_kept():
     # 2026-03-29 02:30 does not exist in Berlin (clocks jump 02:00 -> 03:00): keep the
     # recorder's wall-clock reading for the name rather than shifting it.
     when = recorded_at(wall_epoch(2026, 3, 29, 2, 30, 0), TZ)
-    assert str(archive_names(when, "wav").audio) == "2026-03/29_023000_audio.wav"
+    assert str(archive_names(when, "wav").audio) == "2026-03/2026_03_29_time023000_audio.wav"
     summer = recorded_at(wall_epoch(2026, 7, 1, 9, 0, 0), TZ)
     assert summer.utcoffset().total_seconds() == 7200
 
 
 def test_collision_suffix_shared(tmp_path):
     when = recorded_at(wall_epoch(2026, 10, 25, 14, 30, 12), TZ)
-    put(tmp_path / "2026-10" / "25_143012_audio.wav", b"x")
+    put(tmp_path / "2026-10" / "2026_10_25_time143012_audio.wav", b"x")
     names = choose_names(when, "wav", tmp_path, lambda a, t: False)
-    assert str(names.audio) == "2026-10/25_143012-2_audio.wav"
-    assert str(names.text) == "2026-10/25_143012-2_text.md"
+    assert str(names.audio) == "2026-10/2026_10_25_time143012-2_audio.wav"
+    assert str(names.text) == "2026-10/2026_10_25_time143012-2_text.md"
     # DB reservations count as taken too
     names = choose_names(when, "wav", tmp_path, lambda a, t: a.endswith("-2_audio.wav"))
-    assert str(names.audio) == "2026-10/25_143012-3_audio.wav"
+    assert str(names.audio) == "2026-10/2026_10_25_time143012-3_audio.wav"
 
 
 # -- safe copy ---------------------------------------------------------------------
@@ -161,9 +161,10 @@ def test_ingest_run_end_to_end(tmp_path, repo):
     first = run(mount, archive, repo, on_archived=queued.append)
     assert len(first.archived) == 3 and queued == first.archived
     assert sorted(p.name for p in (archive / "2026-10").iterdir()) == [
-        "25_143012-2_audio.wav", "25_143012_audio.wav", "25_143112_audio.wav",
+        "2026_10_25_time143012-2_audio.wav", "2026_10_25_time143012_audio.wav",
+        "2026_10_25_time143112_audio.wav",
     ]
-    assert (archive / "2026-10" / "25_143112_audio.wav").read_bytes() == b"three"
+    assert (archive / "2026-10" / "2026_10_25_time143112_audio.wav").read_bytes() == b"three"
     assert all(r.status == "copied" for r in repo.all())
 
     second = run(mount, archive, repo)
@@ -175,7 +176,7 @@ def test_ingest_run_end_to_end(tmp_path, repo):
     put(mount / "RECORD" / "REC001.WAV", b"brand new", t + 3600)
     third = run(mount, archive, repo)
     assert len(third.archived) == 1
-    assert (archive / "2026-10" / "25_153012_audio.wav").read_bytes() == b"brand new"
+    assert (archive / "2026-10" / "2026_10_25_time153012_audio.wav").read_bytes() == b"brand new"
 
     # Content already archived under another name/mtime is not copied again.
     put(mount / "RECORD" / "COPY.WAV", b"one", t + 7200)
@@ -222,5 +223,5 @@ def test_ingest_names_by_recording_start(tmp_path, repo):
     put(mount / "RECORD" / "20261012154332.WAV", b"x", wall_epoch(2026, 10, 12, 15, 48, 36))
     run(mount, archive, repo)
     rec = repo.all()[0]
-    assert rec.audio_path == "2026-10/12_154332_audio.wav"
+    assert rec.audio_path == "2026-10/2026_10_12_time154332_audio.wav"
     assert rec.recorded_at == "2026-10-12T15:43:32+02:00"

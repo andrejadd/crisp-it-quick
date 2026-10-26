@@ -22,6 +22,7 @@ from crisp.providers import (
     build_refiner,
     build_transcriber,
 )
+from crisp.sync import sync_archive
 
 log = logging.getLogger("crisp.service")
 
@@ -111,10 +112,29 @@ class Service:
             if not cancel.is_set():
                 await asyncio.to_thread(self.mounter.release, vol)
 
+    async def sync(self) -> None:
+        try:
+            await asyncio.to_thread(sync_archive, self.repo, self.settings.paths.archive_dir)
+        except Exception:
+            log.exception("archive sync failed")
+
+    async def _sync_periodically(self, stop: asyncio.Event) -> None:
+        interval = self.settings.sync.interval_s
+        if interval <= 0:
+            await stop.wait()
+            return
+        while not stop.is_set():
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(stop.wait(), interval)
+            if not stop.is_set():
+                await self.sync()
+
     async def run(self, stop: asyncio.Event) -> None:
+        await self.sync()
         self.enqueue_resumable()
         worker = asyncio.create_task(run_worker(self.queue, self.pipeline), name="worker")
         watcher = asyncio.create_task(self.watcher.run(stop), name="watcher")
+        syncer = asyncio.create_task(self._sync_periodically(stop), name="sync")
         stopper = asyncio.create_task(stop.wait())
         try:
             done, _ = await asyncio.wait(
@@ -127,9 +147,9 @@ class Service:
             log.info("shutting down")
             for job in self.jobs.values():
                 job.cancel.set()
-            for t in (worker, watcher, stopper, *(j.task for j in self.jobs.values())):
+            for t in (worker, watcher, syncer, stopper, *(j.task for j in self.jobs.values())):
                 t.cancel()
-            await asyncio.gather(worker, watcher, stopper,
+            await asyncio.gather(worker, watcher, syncer, stopper,
                                  *(j.task for j in self.jobs.values()), return_exceptions=True)
             for devnode in list(self.mounter.owned):
                 await asyncio.to_thread(self.mounter.release, _volume_stub(devnode))
